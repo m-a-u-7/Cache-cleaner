@@ -1,15 +1,19 @@
 package com.example.syssweep.engine
 
+import android.app.ActivityManager
 import android.app.usage.StorageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Environment
 import android.os.Process
+import android.os.StatFs
 import android.os.storage.StorageManager
 import android.view.accessibility.AccessibilityManager
 import android.view.inputmethod.InputMethodManager
+import com.example.syssweep.data.DeviceTelemetry
 import com.example.syssweep.data.InstalledAppInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -34,8 +38,57 @@ class AppInventoryManager(private val context: Context) {
       "me.bmax.apatch",
     )
 
+  suspend fun loadDeviceTelemetry(): DeviceTelemetry =
+    withContext(Dispatchers.IO) {
+      val (totalStorage, freeStorage) =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+          runCatching {
+              val ssm = context.getSystemService(StorageStatsManager::class.java)
+              if (ssm != null) {
+                ssm.getTotalBytes(StorageManager.UUID_DEFAULT) to
+                  ssm.getFreeBytes(StorageManager.UUID_DEFAULT)
+              } else {
+                statFsStorage()
+              }
+            }
+            .getOrElse { statFsStorage() }
+        } else {
+          statFsStorage()
+        }
+
+      val usedStorage = (totalStorage - freeStorage).coerceAtLeast(0L)
+      val storagePct =
+        if (totalStorage > 0L) ((usedStorage * 100L) / totalStorage).toInt().coerceIn(0, 100)
+        else 0
+
+      val am = context.getSystemService(ActivityManager::class.java)
+      val memInfo = ActivityManager.MemoryInfo()
+      am?.getMemoryInfo(memInfo)
+      val totalRam = memInfo.totalMem.coerceAtLeast(0L)
+      val freeRam = memInfo.availMem.coerceAtLeast(0L)
+      val usedRam = (totalRam - freeRam).coerceAtLeast(0L)
+      val ramPct =
+        if (totalRam > 0L) ((usedRam * 100L) / totalRam).toInt().coerceIn(0, 100) else 0
+
+      DeviceTelemetry(
+        totalStorageBytes = totalStorage,
+        usedStorageBytes = usedStorage,
+        freeStorageBytes = freeStorage.coerceAtLeast(0L),
+        storageUsedPercent = storagePct,
+        totalRamBytes = totalRam,
+        usedRamBytes = usedRam,
+        freeRamBytes = freeRam,
+        ramUsedPercent = ramPct,
+      )
+    }
+
+  private fun statFsStorage(): Pair<Long, Long> {
+    val stat = StatFs(Environment.getDataDirectory().path)
+    return stat.totalBytes to stat.availableBytes
+  }
+
   suspend fun loadInstalledApps(
-    whitelistedPackages: Set<String>,
+    blacklistedPackages: Set<String>,
     hasUsageStatsPermission: Boolean,
   ): List<InstalledAppInfo> =
     withContext(Dispatchers.IO) {
@@ -44,9 +97,12 @@ class AppInventoryManager(private val context: Context) {
 
       val packages =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-          pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(0L))
+          pm.getInstalledApplications(
+            PackageManager.ApplicationInfoFlags.of(PackageManager.MATCH_DISABLED_COMPONENTS.toLong())
+          )
         } else {
-          @Suppress("DEPRECATION") pm.getInstalledApplications(0)
+          @Suppress("DEPRECATION")
+          pm.getInstalledApplications(PackageManager.GET_DISABLED_COMPONENTS)
         }
 
       val storageStatsManager =
@@ -89,10 +145,11 @@ class AppInventoryManager(private val context: Context) {
             label = label,
             cacheBytes = cacheBytes,
             isSystemApp = isSystem,
+            isEnabled = appInfo.enabled,
             isStopped = isStopped,
             isProtectedByDefault = protectionReason != null,
             protectionReason = protectionReason,
-            isWhitelisted = pkg in whitelistedPackages,
+            isBlacklisted = pkg in blacklistedPackages,
           )
         }
         .sortedWith(
@@ -123,7 +180,6 @@ class AppInventoryManager(private val context: Context) {
   private fun resolveDynamicProtectedPackages(pm: PackageManager): Map<String, String> {
     val result = mutableMapOf<String, String>()
 
-    // Default Home / Launcher
     val homeIntent =
       Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_HOME) }
     val homeResolve =
@@ -134,13 +190,11 @@ class AppInventoryManager(private val context: Context) {
       }
     homeResolve?.activityInfo?.packageName?.let { result[it] = "Default Launcher" }
 
-    // Enabled Input Methods (Keyboards)
     val imm = context.getSystemService(InputMethodManager::class.java)
     imm?.enabledInputMethodList?.forEach { info ->
       result.putIfAbsent(info.packageName, "Keyboard (IME)")
     }
 
-    // Enabled Accessibility Services
     val am = context.getSystemService(AccessibilityManager::class.java)
     am?.getEnabledAccessibilityServiceList(
       android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_ALL_MASK

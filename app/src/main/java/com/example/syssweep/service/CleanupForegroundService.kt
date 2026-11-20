@@ -12,7 +12,6 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
-import androidx.glance.appwidget.updateAll
 import com.example.MainActivity
 import com.example.R
 import com.example.SysSweepApp
@@ -20,7 +19,8 @@ import com.example.syssweep.data.SweepActionType
 import com.example.syssweep.data.SweepPreferencesRepository
 import com.example.syssweep.engine.AppInventoryManager
 import com.example.syssweep.engine.PrivilegeBridge
-import com.example.syssweep.widget.SysSweepWidget
+import com.example.syssweep.widget.updateAllSysSweepWidgets
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -48,6 +48,11 @@ class CleanupForegroundService : Service() {
       }
     ServiceCompat.startForeground(this, PROGRESS_NOTIF_ID, notification, fgsType)
 
+    if (!isExecuting.compareAndSet(false, true)) {
+      stopSelf(startId)
+      return START_NOT_STICKY
+    }
+
     serviceScope.launch {
       val repo = SweepPreferencesRepository(applicationContext)
       val bridge = PrivilegeBridge(applicationContext)
@@ -55,13 +60,13 @@ class CleanupForegroundService : Service() {
 
       try {
         repo.setSweepRunning(true)
-        runCatching { SysSweepWidget().updateAll(applicationContext) }
+        updateAllSysSweepWidgets(applicationContext)
 
         val prefs = repo.getSnapshot()
         val diagnostics = bridge.inspectPrivileges(prefs.preferredBackend)
         val apps =
           inventory.loadInstalledApps(
-            whitelistedPackages = prefs.whitelistedPackages,
+            blacklistedPackages = prefs.blacklistedPackages,
             hasUsageStatsPermission = diagnostics.hasUsageStatsPerm,
           )
 
@@ -75,11 +80,12 @@ class CleanupForegroundService : Service() {
           )
 
         repo.saveSweepResult(result)
-        runCatching { SysSweepWidget().updateAll(applicationContext) }
+        updateAllSysSweepWidgets(applicationContext)
         postCompletionNotification(result.summaryMessage)
       } finally {
         repo.setSweepRunning(false)
-        runCatching { SysSweepWidget().updateAll(applicationContext) }
+        isExecuting.set(false)
+        updateAllSysSweepWidgets(applicationContext)
         ServiceCompat.stopForeground(this@CleanupForegroundService, ServiceCompat.STOP_FOREGROUND_REMOVE)
         stopSelf(startId)
       }
@@ -129,6 +135,7 @@ class CleanupForegroundService : Service() {
   }
 
   override fun onDestroy() {
+    isExecuting.set(false)
     serviceScope.cancel()
     super.onDestroy()
   }
@@ -137,6 +144,7 @@ class CleanupForegroundService : Service() {
     const val EXTRA_ACTION_TYPE = "extra_action_type"
     private const val PROGRESS_NOTIF_ID = 4101
     private const val RESULT_NOTIF_ID = 4102
+    private val isExecuting = AtomicBoolean(false)
 
     fun startSweep(context: Context, actionType: SweepActionType) {
       val intent =

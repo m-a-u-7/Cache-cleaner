@@ -26,15 +26,44 @@ enum class SweepActionType {
   BOOST_BOTH,
 }
 
+enum class JunkCategory(val title: String, val subtitle: String) {
+  THUMBNAILS("Thumbnails", "Gallery .thumbnails & .thumbdata caches"),
+  TEMP_FILES("Temp & Logs", ".tmp, .temp, .log, .bak & crash files"),
+  EMPTY_FOLDERS("Empty Folders", "Unused empty directories in storage"),
+  OLD_APKS("Old APK Files", "Downloaded .apk, .apks & .xapk installers"),
+  OTHER_JUNK("Other Non-Media", "Residual .exo, .cache & junk (no photos/audio/video/docs)"),
+}
+
+data class JunkItem(
+  val path: String,
+  val name: String,
+  val sizeBytes: Long,
+  val isDirectory: Boolean,
+  val category: JunkCategory,
+  val isSelected: Boolean = true,
+)
+
+data class DeviceTelemetry(
+  val totalStorageBytes: Long = 0L,
+  val usedStorageBytes: Long = 0L,
+  val freeStorageBytes: Long = 0L,
+  val storageUsedPercent: Int = 0,
+  val totalRamBytes: Long = 0L,
+  val usedRamBytes: Long = 0L,
+  val freeRamBytes: Long = 0L,
+  val ramUsedPercent: Int = 0,
+)
+
 data class InstalledAppInfo(
   val packageName: String,
   val label: String,
   val cacheBytes: Long,
   val isSystemApp: Boolean,
+  val isEnabled: Boolean,
   val isStopped: Boolean,
   val isProtectedByDefault: Boolean,
   val protectionReason: String?,
-  val isWhitelisted: Boolean,
+  val isBlacklisted: Boolean,
 )
 
 data class PrivilegeDiagnostics(
@@ -43,7 +72,9 @@ data class PrivilegeDiagnostics(
   val hasClearCachePerm: Boolean = false,
   val hasDeleteCachePerm: Boolean = false,
   val hasForceStopPerm: Boolean = false,
+  val hasDeletePackagesPerm: Boolean = false,
   val hasUsageStatsPerm: Boolean = false,
+  val hasAllFilesAccess: Boolean = false,
   val isRootAvailable: Boolean = false,
   val isShizukuRunning: Boolean = false,
   val isShizukuPermissionGranted: Boolean = false,

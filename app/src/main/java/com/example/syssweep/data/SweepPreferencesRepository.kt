@@ -18,7 +18,7 @@ private val Context.sweepDataStore: DataStore<Preferences> by
   preferencesDataStore(name = "syssweep_prefs")
 
 data class SweepUserPreferences(
-  val whitelistedPackages: Set<String> = emptySet(),
+  val blacklistedPackages: Set<String> = emptySet(),
   val preferredBackend: PreferredBackend = PreferredBackend.AUTO,
   val includeSystemApps: Boolean = false,
   val autoProtectEssential: Boolean = true,
@@ -30,7 +30,8 @@ data class SweepUserPreferences(
 class SweepPreferencesRepository(private val context: Context) {
 
   private object Keys {
-    val WHITELISTED_PACKAGES = stringSetPreferencesKey("whitelisted_packages")
+    // Kept underlying key name compatible with previous installs
+    val BLACKLISTED_PACKAGES = stringSetPreferencesKey("whitelisted_packages")
     val PREFERRED_BACKEND = stringPreferencesKey("preferred_backend")
     val INCLUDE_SYSTEM_APPS = booleanPreferencesKey("include_system_apps")
     val AUTO_PROTECT_ESSENTIAL = booleanPreferencesKey("auto_protect_essential")
@@ -53,10 +54,10 @@ class SweepPreferencesRepository(private val context: Context) {
 
   suspend fun getSnapshot(): SweepUserPreferences = preferencesFlow.first()
 
-  suspend fun toggleWhitelist(packageName: String) {
+  suspend fun toggleBlacklist(packageName: String) {
     context.sweepDataStore.edit { prefs ->
-      val current = prefs[Keys.WHITELISTED_PACKAGES] ?: emptySet()
-      prefs[Keys.WHITELISTED_PACKAGES] =
+      val current = prefs[Keys.BLACKLISTED_PACKAGES] ?: emptySet()
+      prefs[Keys.BLACKLISTED_PACKAGES] =
         if (packageName in current) current - packageName else current + packageName
     }
   }
@@ -132,7 +133,7 @@ class SweepPreferencesRepository(private val context: Context) {
       }
 
     return SweepUserPreferences(
-      whitelistedPackages = this[Keys.WHITELISTED_PACKAGES] ?: emptySet(),
+      blacklistedPackages = this[Keys.BLACKLISTED_PACKAGES] ?: emptySet(),
       preferredBackend = backend,
       includeSystemApps = this[Keys.INCLUDE_SYSTEM_APPS] ?: false,
       autoProtectEssential = this[Keys.AUTO_PROTECT_ESSENTIAL] ?: true,

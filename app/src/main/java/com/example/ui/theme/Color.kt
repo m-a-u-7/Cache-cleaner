@@ -2,46 +2,50 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Obsidian & Emerald Pulse — Precision System Telemetry Palette
-val EmeraldPrimaryDark = Color(0xFF2CE59B)
-val OnEmeraldDark = Color(0xFF003822)
-val EmeraldContainerDark = Color(0xFF084B32)
-val OnEmeraldContainerDark = Color(0xFF8CFFCB)
+// Deep Slate & Electric Blue + Emerald Status Palette
+val ElectricBluePrimary = Color(0xFF3B82F6)
+val OnElectricBlue = Color(0xFFFFFFFF)
+val ElectricBlueContainer = Color(0xFF1E3A5F)
+val OnElectricBlueContainer = Color(0xFFDBEAFE)
 
-val CyanSecondaryDark = Color(0xFF56D9FF)
-val OnCyanDark = Color(0xFF003546)
-val CyanContainerDark = Color(0xFF0B485D)
-val OnCyanContainerDark = Color(0xFFB8EAFF)
+val EmeraldAccent = Color(0xFF22C55E)
+val EmeraldGlow = Color(0xFF1F4B43)
+val OnEmeraldAccent = Color(0xFF052E16)
 
-val AmberTertiaryDark = Color(0xFFFFC857)
-val OnAmberDark = Color(0xFF3E2A00)
+val CyanSecondary = Color(0xFF38BDF8)
+val OnCyanSecondary = Color(0xFF082F49)
+val CyanContainerDark = Color(0xFF15384B)
+val OnCyanContainerDark = Color(0xFFE0F2FE)
 
-val ObsidianBg = Color(0xFF0B1117)
-val ObsidianSurface = Color(0xFF101822)
-val ObsidianSurfaceHigh = Color(0xFF182433)
-val ObsidianOutline = Color(0xFF2B3B4E)
-val TextPrimaryDark = Color(0xFFEAF2F8)
-val TextSecondaryDark = Color(0xFF99ACBE)
+val AmberTertiaryDark = Color(0xFFF59E0B)
+val OnAmberDark = Color(0xFF451A03)
+
+val ObsidianBg = Color(0xFF11161D)
+val ObsidianSurface = Color(0xFF1A222C)
+val ObsidianSurfaceHigh = Color(0xFF232D3B)
+val ObsidianOutline = Color(0xFF2E3A4A)
+val TextPrimaryDark = Color(0xFFF1F5F9)
+val TextSecondaryDark = Color(0xFF94A3B8)
 
 // Light Mode Companion Palette
-val EmeraldPrimaryLight = Color(0xFF006C47)
-val OnEmeraldLight = Color(0xFFFFFFFF)
-val EmeraldContainerLight = Color(0xFF8AF7C2)
-val OnEmeraldContainerLight = Color(0xFF002113)
+val BluePrimaryLight = Color(0xFF2563EB)
+val OnBlueLight = Color(0xFFFFFFFF)
+val BlueContainerLight = Color(0xFFDBEAFE)
+val OnBlueContainerLight = Color(0xFF1E3A8A)
 
-val CyanSecondaryLight = Color(0xFF006584)
+val CyanSecondaryLight = Color(0xFF0284C7)
 val OnCyanLight = Color(0xFFFFFFFF)
-val CyanContainerLight = Color(0xFFC2E8FF)
-val OnCyanContainerLight = Color(0xFF001E2B)
+val CyanContainerLight = Color(0xFFE0F2FE)
+val OnCyanContainerLight = Color(0xFF0C4A6E)
 
-val LightBg = Color(0xFFF3F7FA)
+val LightBg = Color(0xFFF3F6FA)
 val LightSurface = Color(0xFFFFFFFF)
-val LightSurfaceHigh = Color(0xFFE6EEF4)
-val LightOutline = Color(0xFFC3D0DC)
-val TextPrimaryLight = Color(0xFF0F1A24)
-val TextSecondaryLight = Color(0xFF4F6273)
+val LightSurfaceHigh = Color(0xFFE8EEF5)
+val LightOutline = Color(0xFFCBD5E1)
+val TextPrimaryLight = Color(0xFF0F172A)
+val TextSecondaryLight = Color(0xFF475569)
 
 // Semantic Status Accents
-val StatusSuccess = Color(0xFF2CE59B)
-val StatusWarning = Color(0xFFFFB74D)
-val StatusDanger = Color(0xFFFF6B6B)
+val StatusSuccess = Color(0xFF22C55E)
+val StatusWarning = Color(0xFFF59E0B)
+val StatusDanger = Color(0xFFEF4444)

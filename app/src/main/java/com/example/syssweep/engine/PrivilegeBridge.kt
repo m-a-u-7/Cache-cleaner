@@ -1,5 +1,6 @@
 package com.example.syssweep.engine
 
+import android.Manifest
 import android.app.ActivityManager
 import android.app.AppOpsManager
 import android.content.ComponentName
@@ -8,8 +9,10 @@ import android.content.ServiceConnection
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Environment
 import android.os.IBinder
 import android.os.Process
+import androidx.core.content.ContextCompat
 import com.example.BuildConfig
 import com.example.syssweep.data.InstalledAppInfo
 import com.example.syssweep.data.PreferredBackend
@@ -51,8 +54,12 @@ class PrivilegeBridge(private val context: Context) {
       val hasForceStop =
         pm.checkPermission("android.permission.FORCE_STOP_PACKAGES", context.packageName) ==
           PackageManager.PERMISSION_GRANTED
+      val hasDeletePackages =
+        pm.checkPermission("android.permission.DELETE_PACKAGES", context.packageName) ==
+          PackageManager.PERMISSION_GRANTED
 
       val hasUsageStats = hasUsageStatsAccess()
+      val hasAllFiles = hasAllFilesStorageAccess()
       val isRoot = checkRootAvailable()
       val shizukuRunning = runCatching { Shizuku.pingBinder() }.getOrDefault(false)
       val shizukuGranted =
@@ -89,12 +96,23 @@ class PrivilegeBridge(private val context: Context) {
         hasClearCachePerm = hasClearCache,
         hasDeleteCachePerm = hasDeleteCache,
         hasForceStopPerm = hasForceStop,
+        hasDeletePackagesPerm = hasDeletePackages,
         hasUsageStatsPerm = hasUsageStats,
+        hasAllFilesAccess = hasAllFiles,
         isRootAvailable = isRoot,
         isShizukuRunning = shizukuRunning,
         isShizukuPermissionGranted = shizukuGranted,
       )
     }
+
+  fun hasAllFilesStorageAccess(): Boolean {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      runCatching { Environment.isExternalStorageManager() }.getOrDefault(false)
+    } else {
+      ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
+        PackageManager.PERMISSION_GRANTED
+    }
+  }
 
   fun hasUsageStatsAccess(): Boolean {
     val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as? AppOpsManager ?: return false
@@ -137,6 +155,7 @@ class PrivilegeBridge(private val context: Context) {
     includeSystemApps: Boolean,
     autoProtectEssential: Boolean,
     preferredBackend: PreferredBackend,
+    explicitStopPackages: Set<String>? = null,
   ): SweepResult =
     withContext(Dispatchers.IO) {
       val diagnostics = inspectPrivileges(preferredBackend)
@@ -146,13 +165,13 @@ class PrivilegeBridge(private val context: Context) {
         apps.filter { app ->
           val systemAllowed = includeSystemApps || !app.isSystemApp
           val essentialAllowed = !autoProtectEssential || !app.isProtectedByDefault
-          systemAllowed && essentialAllowed && !app.isWhitelisted
+          val selectionAllowed =
+            explicitStopPackages == null || app.packageName in explicitStopPackages
+          systemAllowed && essentialAllowed && !app.isBlacklisted && selectionAllowed
         }
       val skippedCount = apps.size - targetApps.size
       val estimatedCacheBytes =
-        apps
-          .filter { includeSystemApps || !it.isSystemApp }
-          .sumOf { it.cacheBytes }
+        apps.filter { includeSystemApps || !it.isSystemApp }.sumOf { it.cacheBytes }
 
       if (mode == PrivilegeMode.LIMITED_NONE) {
         return@withContext SweepResult(
@@ -238,7 +257,7 @@ class PrivilegeBridge(private val context: Context) {
       }
     }
 
-  suspend fun clearSinglePackageCache(
+  suspend fun clearSinglePackageCacheRootOnly(
     packageName: String,
     preferredBackend: PreferredBackend,
   ): Boolean =
@@ -246,16 +265,106 @@ class PrivilegeBridge(private val context: Context) {
       if (!packageRegex.matches(packageName)) return@withContext false
       val diagnostics = inspectPrivileges(preferredBackend)
       when (diagnostics.activeMode) {
-        PrivilegeMode.SYSTEM_PRIV_APP -> deleteSingleAppCacheSystem(packageName)
         PrivilegeMode.ROOT_SU ->
           runRootCommands(
             listOf(
               "rm -rf /data/user/0/$packageName/cache/* /data/user/0/$packageName/code_cache/* /sdcard/Android/data/$packageName/cache/*"
             )
           )
+        PrivilegeMode.SYSTEM_PRIV_APP -> deleteSingleAppCacheSystem(packageName)
+        else -> false
+      }
+    }
+
+  suspend fun uninstallPackagePrivileged(
+    packageName: String,
+    preferredBackend: PreferredBackend,
+  ): Boolean =
+    withContext(Dispatchers.IO) {
+      if (!packageRegex.matches(packageName) || packageName == context.packageName) {
+        return@withContext false
+      }
+      val diagnostics = inspectPrivileges(preferredBackend)
+      when (diagnostics.activeMode) {
+        PrivilegeMode.ROOT_SU ->
+          runRootCommands(listOf("pm uninstall --user ${currentUserId()} $packageName"))
         PrivilegeMode.SHIZUKU ->
-          // Non-root Shizuku only supports global cache trim (`pm trim-caches`), not per-package delete
-          withShizukuService { service -> service.trimAllCaches() } ?: false
+          withShizukuService { service ->
+            service.uninstallPackage(packageName, currentUserId())
+          } ?: false
+        PrivilegeMode.SYSTEM_PRIV_APP -> {
+          if (!diagnostics.hasDeletePackagesPerm) return@withContext false
+          runCatching {
+              val intent = android.content.Intent("${context.packageName}.ACTION_UNINSTALL_STATUS")
+              val pending =
+                android.app.PendingIntent.getBroadcast(
+                  context,
+                  packageName.hashCode(),
+                  intent,
+                  android.app.PendingIntent.FLAG_UPDATE_CURRENT or
+                    android.app.PendingIntent.FLAG_IMMUTABLE,
+                )
+              context.packageManager.packageInstaller.uninstall(
+                packageName,
+                pending.intentSender,
+              )
+              true
+            }
+            .getOrDefault(false)
+        }
+        PrivilegeMode.LIMITED_NONE -> false
+      }
+    }
+
+  suspend fun disablePackagePrivileged(
+    packageName: String,
+    preferredBackend: PreferredBackend,
+  ): Boolean =
+    withContext(Dispatchers.IO) {
+      if (!packageRegex.matches(packageName)) return@withContext false
+      val diagnostics = inspectPrivileges(preferredBackend)
+      when (diagnostics.activeMode) {
+        PrivilegeMode.ROOT_SU ->
+          runRootCommands(listOf("pm disable-user --user ${currentUserId()} $packageName"))
+        PrivilegeMode.SHIZUKU ->
+          withShizukuService { service ->
+            service.disablePackage(packageName, currentUserId())
+          } ?: false
+        PrivilegeMode.SYSTEM_PRIV_APP ->
+          runCatching {
+              context.packageManager.setApplicationEnabledSetting(
+                packageName,
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER,
+                0,
+              )
+              true
+            }
+            .getOrDefault(false)
+        PrivilegeMode.LIMITED_NONE -> false
+      }
+    }
+
+  suspend fun enablePackagePrivileged(
+    packageName: String,
+    preferredBackend: PreferredBackend,
+  ): Boolean =
+    withContext(Dispatchers.IO) {
+      if (!packageRegex.matches(packageName)) return@withContext false
+      val diagnostics = inspectPrivileges(preferredBackend)
+      when (diagnostics.activeMode) {
+        PrivilegeMode.ROOT_SU -> runRootCommands(listOf("pm enable $packageName"))
+        PrivilegeMode.SHIZUKU ->
+          withShizukuService { service -> service.enablePackage(packageName) } ?: false
+        PrivilegeMode.SYSTEM_PRIV_APP ->
+          runCatching {
+              context.packageManager.setApplicationEnabledSetting(
+                packageName,
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                0,
+              )
+              true
+            }
+            .getOrDefault(false)
         PrivilegeMode.LIMITED_NONE -> false
       }
     }
@@ -437,21 +546,18 @@ class PrivilegeBridge(private val context: Context) {
           method.isAccessible = true
           when (params.size) {
             4 -> {
-              // (String volumeUuid, long idealStorageSize, int storageFlags, IPackageDataObserver)
               if (params[0] == String::class.java && params[1] == Long::class.javaPrimitiveType) {
                 method.invoke(pm, null, targetBytes, 0, null)
                 return@runCatching true
               }
             }
             3 -> {
-              // (String volumeUuid, long idealStorageSize, IPackageDataObserver)
               if (params[0] == String::class.java && params[1] == Long::class.javaPrimitiveType) {
                 method.invoke(pm, null, targetBytes, null)
                 return@runCatching true
               }
             }
             2 -> {
-              // (long idealStorageSize, IPackageDataObserver)
               if (params[0] == Long::class.javaPrimitiveType) {
                 method.invoke(pm, targetBytes, null)
                 return@runCatching true
@@ -565,7 +671,7 @@ class PrivilegeBridge(private val context: Context) {
   ): String {
     val parts = mutableListOf<String>()
     if (actionType == SweepActionType.CLEAR_CACHE || actionType == SweepActionType.BOOST_BOTH) {
-      parts.add(if (cacheOk) "Caches trimmed" else "Cache trim failed")
+      parts.add(if (cacheOk) "All caches trimmed" else "Cache trim failed")
     }
     if (actionType == SweepActionType.FORCE_STOP || actionType == SweepActionType.BOOST_BOTH) {
       val failText = if (failed > 0) " ($failed failed)" else ""

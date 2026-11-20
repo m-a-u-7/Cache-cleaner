@@ -14,6 +14,19 @@ class SysSweepUserService() : ISysSweepUserService.Stub() {
 
   private val packageRegex = Regex("^[a-zA-Z0-9._]+$")
 
+  private val neverRemovePackages =
+    setOf(
+      "android",
+      "com.android.systemui",
+      "com.android.settings",
+      "com.android.phone",
+      "com.android.providers.telephony",
+      "com.android.server.telecom",
+      "com.android.shell",
+      "moe.shizuku.privileged.api",
+      "rikka.shizuku.server",
+    )
+
   override fun destroy() {
     exitProcess(0)
   }
@@ -60,14 +73,20 @@ class SysSweepUserService() : ISysSweepUserService.Stub() {
         val process = ProcessBuilder("/system/bin/sh").redirectErrorStream(true).start()
         BufferedWriter(OutputStreamWriter(process.outputStream)).use { writer ->
           for (pkg in validPackages) {
-            writer.write("am force-stop --user $userId $pkg\n")
+            writer.write("am force-stop --user $userId $pkg && echo STOP_OK\n")
           }
           writer.write("exit 0\n")
           writer.flush()
         }
-        process.inputStream.bufferedReader().use { it.readText() }
-        process.waitFor()
-        validPackages.size
+        val output = process.inputStream.bufferedReader().use { it.readText() }
+        val finished = process.waitFor(30, java.util.concurrent.TimeUnit.SECONDS)
+        if (!finished) {
+          process.destroyForcibly()
+          0
+        } else {
+          val okCount = output.lines().count { it.trim() == "STOP_OK" }
+          if (okCount > 0) okCount else validPackages.size
+        }
       }
       .getOrElse {
         var count = 0
@@ -76,5 +95,58 @@ class SysSweepUserService() : ISysSweepUserService.Stub() {
         }
         count
       }
+  }
+
+  override fun uninstallPackage(packageName: String, userId: Int): Boolean {
+    if (!packageRegex.matches(packageName) || packageName in neverRemovePackages) return false
+    val userUninstallOk =
+      runCatching {
+          val process =
+            ProcessBuilder("pm", "uninstall", "--user", userId.toString(), packageName)
+              .redirectErrorStream(true)
+              .start()
+          val output = process.inputStream.bufferedReader().use { it.readText() }
+          process.waitFor(15, java.util.concurrent.TimeUnit.SECONDS) &&
+            output.contains("Success", ignoreCase = true)
+        }
+        .getOrDefault(false)
+    if (userUninstallOk) return true
+
+    return runCatching {
+        val process =
+          ProcessBuilder("pm", "uninstall", packageName).redirectErrorStream(true).start()
+        val output = process.inputStream.bufferedReader().use { it.readText() }
+        process.waitFor(15, java.util.concurrent.TimeUnit.SECONDS) &&
+          output.contains("Success", ignoreCase = true)
+      }
+      .getOrDefault(false)
+  }
+
+  override fun disablePackage(packageName: String, userId: Int): Boolean {
+    if (!packageRegex.matches(packageName) || packageName in neverRemovePackages) return false
+    return runCatching {
+        val process =
+          ProcessBuilder("pm", "disable-user", "--user", userId.toString(), packageName)
+            .redirectErrorStream(true)
+            .start()
+        val output = process.inputStream.bufferedReader().use { it.readText() }
+        process.waitFor() == 0 &&
+          (output.contains("disabled", ignoreCase = true) ||
+            output.contains("new state", ignoreCase = true))
+      }
+      .getOrDefault(false)
+  }
+
+  override fun enablePackage(packageName: String): Boolean {
+    if (!packageRegex.matches(packageName)) return false
+    return runCatching {
+        val process =
+          ProcessBuilder("pm", "enable", packageName).redirectErrorStream(true).start()
+        val output = process.inputStream.bufferedReader().use { it.readText() }
+        process.waitFor() == 0 &&
+          (output.contains("enabled", ignoreCase = true) ||
+            output.contains("new state", ignoreCase = true))
+      }
+      .getOrDefault(false)
   }
 }

@@ -12,12 +12,12 @@ import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme =
   darkColorScheme(
-    primary = EmeraldPrimaryDark,
-    onPrimary = OnEmeraldDark,
-    primaryContainer = EmeraldContainerDark,
-    onPrimaryContainer = OnEmeraldContainerDark,
-    secondary = CyanSecondaryDark,
-    onSecondary = OnCyanDark,
+    primary = ElectricBluePrimary,
+    onPrimary = OnElectricBlue,
+    primaryContainer = ElectricBlueContainer,
+    onPrimaryContainer = OnElectricBlueContainer,
+    secondary = CyanSecondary,
+    onSecondary = OnCyanSecondary,
     secondaryContainer = CyanContainerDark,
     onSecondaryContainer = OnCyanContainerDark,
     tertiary = AmberTertiaryDark,
@@ -34,10 +34,10 @@ private val DarkColorScheme =
 
 private val LightColorScheme =
   lightColorScheme(
-    primary = EmeraldPrimaryLight,
-    onPrimary = OnEmeraldLight,
-    primaryContainer = EmeraldContainerLight,
-    onPrimaryContainer = OnEmeraldContainerLight,
+    primary = BluePrimaryLight,
+    onPrimary = OnBlueLight,
+    primaryContainer = BlueContainerLight,
+    onPrimaryContainer = OnBlueContainerLight,
     secondary = CyanSecondaryLight,
     onSecondary = OnCyanLight,
     secondaryContainer = CyanContainerLight,

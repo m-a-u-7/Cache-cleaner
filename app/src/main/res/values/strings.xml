@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">SysSweep</string>
+    <string name="app_name">Clean Master</string>
     <string name="nav_dashboard">Dashboard</string>
     <string name="nav_apps">Apps</string>
     <string name="nav_widget_settings">Widget &amp; Config</string>
@@ -13,14 +13,20 @@
     <string name="action_clear_cache">Clear All Cache</string>
     <string name="action_force_stop">Force Stop All</string>
 
-    <string name="widget_name">SysSweep Quick Boost</string>
+    <string name="widget_name">Clean Master Quick Boost</string>
     <string name="widget_description">One-tap cache cleaner and background app force-stopper</string>
+    <string name="mini_ram_widget_name">RAM Clean (1×1)</string>
+    <string name="mini_ram_widget_desc">Tiny 1×1 icon widget to force-stop background apps and free RAM</string>
+    <string name="mini_cache_widget_name">Cache Clean (1×1)</string>
+    <string name="mini_cache_widget_desc">Tiny 1×1 icon widget to clear all app caches</string>
+    <string name="mini_dual_widget_name">RAM + Cache Icons (2×1)</string>
+    <string name="mini_dual_widget_desc">Compact dual-icon bar for one-tap RAM Clean and Cache Clean</string>
     <string name="widget_btn_cache">Cache</string>
     <string name="widget_btn_stop">Force Stop</string>
     <string name="widget_btn_boost">Boost All</string>
 
     <string name="notif_channel_name">Sweep Execution</string>
-    <string name="notif_channel_desc">Shows progress and results when SysSweep clears caches or stops apps</string>
-    <string name="notif_sweeping_title">SysSweep Running</string>
+    <string name="notif_channel_desc">Shows progress and results when Clean Master clears caches or stops apps</string>
+    <string name="notif_sweeping_title">Clean Master Running</string>
     <string name="notif_sweeping_text">Sweeping caches and stopping background apps…</string>
 </resources>
