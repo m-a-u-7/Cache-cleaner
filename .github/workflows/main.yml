@@ -1,7 +1,13 @@
-# SysSweep APK builder — GitHub Actions workflow
-# Place this file at: .github/workflows/build-apk.yml  (inside your GitHub repo)
-# Then push any change (or press "Run workflow") — the APK appears under
-# the run's "Artifacts" as SysSweep-debug-apk.
+# SysSweep APK builder — GitHub Actions workflow (FIXED)
+# Replace the current .github/workflows/main.yml with this file, then push.
+#
+# Fix: app/build.gradle.kts signs the debug build with a custom config
+# "debugConfig" that needs ${rootDir}/debug.keystore — but that file is in
+# .gitignore, so it never reaches the repo and the build fails at signing.
+# This workflow generates the debug keystore on the runner before building
+# (store password "android", alias "androiddebugkey", key password "android"
+# — exactly what debugConfig expects). The signing config itself is left
+# untouched, as AI Studio requires.
 #
 # Note: this project zip has no gradlew wrapper, so the workflow installs
 # Gradle 9.3.1 itself (via gradle/actions/setup-gradle) and runs `gradle`
@@ -32,6 +38,9 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '9.3.1'
+
+      - name: Generate debug keystore
+        run: keytool -genkeypair -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
 
       - name: Build debug APK
         run: gradle assembleDebug --stacktrace
