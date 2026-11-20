@@ -1,0 +1,6 @@
+{
+  "name": "SysSweep",
+  "description": "System-level cache cleaner, background app force-stopper, and home screen widget supporting System Priv-App, Root, and Shizuku privileges.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

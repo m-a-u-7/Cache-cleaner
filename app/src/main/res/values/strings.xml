@@ -1,0 +1,26 @@
+<resources>
+    <string name="app_name">SysSweep</string>
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_apps">Apps</string>
+    <string name="nav_widget_settings">Widget &amp; Config</string>
+
+    <string name="privilege_mode_priv_app">System Priv-App</string>
+    <string name="privilege_mode_root">Root (su)</string>
+    <string name="privilege_mode_shizuku">Shizuku Bridge</string>
+    <string name="privilege_mode_none">Privilege Required</string>
+
+    <string name="action_boost_both">Boost &amp; Sweep All</string>
+    <string name="action_clear_cache">Clear All Cache</string>
+    <string name="action_force_stop">Force Stop All</string>
+
+    <string name="widget_name">SysSweep Quick Boost</string>
+    <string name="widget_description">One-tap cache cleaner and background app force-stopper</string>
+    <string name="widget_btn_cache">Cache</string>
+    <string name="widget_btn_stop">Force Stop</string>
+    <string name="widget_btn_boost">Boost All</string>
+
+    <string name="notif_channel_name">Sweep Execution</string>
+    <string name="notif_channel_desc">Shows progress and results when SysSweep clears caches or stops apps</string>
+    <string name="notif_sweeping_title">SysSweep Running</string>
+    <string name="notif_sweeping_text">Sweeping caches and stopping background apps…</string>
+</resources>
