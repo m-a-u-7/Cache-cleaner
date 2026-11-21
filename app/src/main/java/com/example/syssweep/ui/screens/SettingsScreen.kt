@@ -1,12 +1,15 @@
 package com.example.syssweep.ui.screens
 
 import android.appwidget.AppWidgetManager
-import android.appwidget.AppWidgetProvider
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -48,24 +51,35 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.GlanceAppWidgetManager
+import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import com.example.BuildConfig
 import com.example.syssweep.data.PreferredBackend
 import com.example.syssweep.data.WidgetPrimaryAction
 import com.example.syssweep.ui.DashboardUiState
+import com.example.syssweep.widget.MiniCacheWidget
 import com.example.syssweep.widget.MiniCacheWidgetReceiver
+import com.example.syssweep.widget.MiniDualWidget
 import com.example.syssweep.widget.MiniDualWidgetReceiver
+import com.example.syssweep.widget.MiniRamWidget
 import com.example.syssweep.widget.MiniRamWidgetReceiver
+import com.example.syssweep.widget.SysSweepWidget
 import com.example.syssweep.widget.SysSweepWidgetReceiver
 import com.example.ui.theme.EmeraldAccent
 import com.example.ui.theme.StatusDanger
 import com.example.ui.theme.StatusSuccess
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
@@ -80,8 +94,10 @@ fun SettingsScreen(
   modifier: Modifier = Modifier,
 ) {
   val context = LocalContext.current
+  val scope = rememberCoroutineScope()
   val privAppXml = buildPrivAppWhitelistXml(BuildConfig.APPLICATION_ID)
   val diag = state.diagnostics
+  val widgetDiag = remember(context) { inspectWidgetEnvironment(context) }
 
   Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
     LazyColumn(
@@ -325,12 +341,16 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 Button(
                   onClick = {
-                    pinCleanMasterWidget(
-                      context = context,
-                      receiverClass = MiniDualWidgetReceiver::class.java,
-                      widgetLabel = "Mini Dual Icons (2×1)",
-                      onNotify = onNotify,
-                    )
+                    scope.launch {
+                      pinCleanMasterWidget(
+                        context = context,
+                        receiverClass = MiniDualWidgetReceiver::class.java,
+                        previewWidget = MiniDualWidget(),
+                        previewSize = DpSize(128.dp, 64.dp),
+                        widgetLabel = "Mini Dual Icons (2×1)",
+                        onNotify = onNotify,
+                      )
+                    }
                   },
                   shape = RoundedCornerShape(999.dp),
                   contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
@@ -353,12 +373,16 @@ fun SettingsScreen(
             ) {
               OutlinedButton(
                 onClick = {
-                  pinCleanMasterWidget(
-                    context = context,
-                    receiverClass = MiniRamWidgetReceiver::class.java,
-                    widgetLabel = "RAM Clean (1×1)",
-                    onNotify = onNotify,
-                  )
+                  scope.launch {
+                    pinCleanMasterWidget(
+                      context = context,
+                      receiverClass = MiniRamWidgetReceiver::class.java,
+                      previewWidget = MiniRamWidget(),
+                      previewSize = DpSize(64.dp, 64.dp),
+                      widgetLabel = "RAM Clean (1×1)",
+                      onNotify = onNotify,
+                    )
+                  }
                 },
                 shape = RoundedCornerShape(14.dp),
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
@@ -368,12 +392,16 @@ fun SettingsScreen(
               }
               OutlinedButton(
                 onClick = {
-                  pinCleanMasterWidget(
-                    context = context,
-                    receiverClass = MiniCacheWidgetReceiver::class.java,
-                    widgetLabel = "Cache Clean (1×1)",
-                    onNotify = onNotify,
-                  )
+                  scope.launch {
+                    pinCleanMasterWidget(
+                      context = context,
+                      receiverClass = MiniCacheWidgetReceiver::class.java,
+                      previewWidget = MiniCacheWidget(),
+                      previewSize = DpSize(64.dp, 64.dp),
+                      widgetLabel = "Cache Clean (1×1)",
+                      onNotify = onNotify,
+                    )
+                  }
                 },
                 shape = RoundedCornerShape(14.dp),
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
@@ -383,19 +411,63 @@ fun SettingsScreen(
               }
             }
 
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              Text(
+                text = "Registered: ${widgetDiag.registeredCount}/4 • Launcher: ${widgetDiag.launcherName}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+              )
               TextButton(
                 onClick = {
-                  pinCleanMasterWidget(
-                    context = context,
-                    receiverClass = SysSweepWidgetReceiver::class.java,
-                    widgetLabel = "Clean Master Quick Boost",
-                    onNotify = onNotify,
-                  )
+                  scope.launch {
+                    pinCleanMasterWidget(
+                      context = context,
+                      receiverClass = SysSweepWidgetReceiver::class.java,
+                      previewWidget = SysSweepWidget(),
+                      previewSize = DpSize(250.dp, 110.dp),
+                      widgetLabel = "Clean Master Quick Boost",
+                      onNotify = onNotify,
+                    )
+                  }
                 },
                 modifier = Modifier.testTag("pin_full_widget"),
               ) {
-                Text("Add Full Quick Boost Bar (4×2)")
+                Text("Full Bar (4×2)")
+              }
+            }
+
+            if (widgetDiag.launcherPackage != null) {
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+              ) {
+                Text(
+                  text = "If missing in Home picker: unlock layout or clear Launcher cache",
+                  style = MaterialTheme.typography.labelSmall,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  modifier = Modifier.weight(1f),
+                )
+                TextButton(
+                  onClick = {
+                    runCatching {
+                      context.startActivity(
+                        Intent(
+                          Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                          Uri.parse("package:${widgetDiag.launcherPackage}"),
+                        )
+                      )
+                    }
+                  },
+                  modifier = Modifier.testTag("open_launcher_info_button"),
+                ) {
+                  Text("Launcher Info")
+                }
               }
             }
 
@@ -518,9 +590,54 @@ private fun DiagnosticStatusRow(
   }
 }
 
-private fun pinCleanMasterWidget(
+private data class WidgetEnvDiagnostics(
+  val registeredCount: Int,
+  val launcherName: String,
+  val launcherPackage: String?,
+)
+
+private fun inspectWidgetEnvironment(context: Context): WidgetEnvDiagnostics {
+  val registeredCount =
+    runCatching {
+        val manager = AppWidgetManager.getInstance(context)
+        manager.getInstalledProvidersForPackage(context.packageName, null).size
+      }
+      .getOrDefault(0)
+
+  val homeResolve =
+    runCatching {
+        val homeIntent =
+          Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+          context.packageManager.resolveActivity(
+            homeIntent,
+            PackageManager.ResolveInfoFlags.of(PackageManager.MATCH_DEFAULT_ONLY.toLong()),
+          )
+        } else {
+          @Suppress("DEPRECATION")
+          context.packageManager.resolveActivity(homeIntent, PackageManager.MATCH_DEFAULT_ONLY)
+        }
+      }
+      .getOrNull()
+
+  val launcherPkg = homeResolve?.activityInfo?.packageName
+  val launcherLabel =
+    homeResolve?.loadLabel(context.packageManager)?.toString()?.takeIf { it.isNotBlank() }
+      ?: launcherPkg
+      ?: "Default"
+
+  return WidgetEnvDiagnostics(
+    registeredCount = registeredCount,
+    launcherName = launcherLabel,
+    launcherPackage = launcherPkg,
+  )
+}
+
+private suspend fun <T : GlanceAppWidgetReceiver> pinCleanMasterWidget(
   context: Context,
-  receiverClass: Class<out AppWidgetProvider>,
+  receiverClass: Class<T>,
+  previewWidget: GlanceAppWidget,
+  previewSize: DpSize,
   widgetLabel: String,
   onNotify: (String) -> Unit,
 ) {
@@ -528,11 +645,42 @@ private fun pinCleanMasterWidget(
     val manager = context.getSystemService(AppWidgetManager::class.java)
     val provider = ComponentName(context, receiverClass)
     if (manager != null && manager.isRequestPinAppWidgetSupported) {
-      val requested = runCatching { manager.requestPinAppWidget(provider, null, null) }.getOrDefault(false)
-      if (requested) {
+      val glancePinned =
+        runCatching {
+            GlanceAppWidgetManager(context).requestPinGlanceAppWidget(
+              receiver = receiverClass,
+              preview = previewWidget,
+              previewState = previewSize,
+            )
+          }
+          .getOrDefault(false)
+
+      if (glancePinned) {
         onNotify("Confirm adding '$widgetLabel' on your Home Screen prompt.")
+        return
+      }
+
+      val legacyPinned =
+        runCatching { manager.requestPinAppWidget(provider, null, null) }.getOrDefault(false)
+      if (legacyPinned) {
+        onNotify("Confirm adding '$widgetLabel' on your Home Screen prompt.")
+        return
+      }
+
+      val isRegistered =
+        runCatching {
+            manager.getInstalledProvidersForPackage(context.packageName, null).any {
+              it.provider == provider
+            }
+          }
+          .getOrDefault(false)
+
+      if (!isRegistered) {
+        onNotify("Widget provider not registered yet. Clear Launcher cache or reboot device.")
       } else {
-        onNotify("Launcher declined auto-pin. Long-press Home Screen → Widgets → Clean Master.")
+        onNotify(
+          "Launcher declined auto-pin (check Home layout lock / Launcher cache). Try Home → Widgets → Clean Master."
+        )
       }
       return
     }

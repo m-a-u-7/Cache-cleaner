@@ -210,49 +210,57 @@ private fun MiniDualIconWidgetContent(isSweeping: Boolean) {
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
     Box(
-      modifier =
-        GlanceModifier.defaultWeight()
-          .size(38.dp)
-          .background(if (isSweeping) Color(0xFF334155) else Color(0xFF22C55E))
-          .cornerRadius(999.dp)
-          .clickable(
-            onClick =
-              actionRunCallback<RunSweepWidgetAction>(
-                actionParametersOf(ACTION_TYPE_KEY to SweepActionType.FORCE_STOP.name)
-              )
-          ),
+      modifier = GlanceModifier.defaultWeight(),
       contentAlignment = Alignment.Center,
     ) {
-      Image(
-        provider = ImageProvider(R.drawable.ic_widget_ram),
-        contentDescription = "RAM Clean",
-        colorFilter = ColorFilter.tint(ColorProvider(Color(0xFF052E16))),
-        modifier = GlanceModifier.size(20.dp),
-      )
+      Box(
+        modifier =
+          GlanceModifier.size(36.dp)
+            .background(if (isSweeping) Color(0xFF334155) else Color(0xFF22C55E))
+            .cornerRadius(999.dp)
+            .clickable(
+              onClick =
+                actionRunCallback<RunSweepWidgetAction>(
+                  actionParametersOf(ACTION_TYPE_KEY to SweepActionType.FORCE_STOP.name)
+                )
+            ),
+        contentAlignment = Alignment.Center,
+      ) {
+        Image(
+          provider = ImageProvider(R.drawable.ic_widget_ram),
+          contentDescription = "RAM Clean",
+          colorFilter = ColorFilter.tint(ColorProvider(Color(0xFF052E16))),
+          modifier = GlanceModifier.size(20.dp),
+        )
+      }
     }
 
-    Spacer(modifier = GlanceModifier.width(8.dp))
+    Spacer(modifier = GlanceModifier.width(6.dp))
 
     Box(
-      modifier =
-        GlanceModifier.defaultWeight()
-          .size(38.dp)
-          .background(if (isSweeping) Color(0xFF334155) else Color(0xFF3B82F6))
-          .cornerRadius(999.dp)
-          .clickable(
-            onClick =
-              actionRunCallback<RunSweepWidgetAction>(
-                actionParametersOf(ACTION_TYPE_KEY to SweepActionType.CLEAR_CACHE.name)
-              )
-          ),
+      modifier = GlanceModifier.defaultWeight(),
       contentAlignment = Alignment.Center,
     ) {
-      Image(
-        provider = ImageProvider(R.drawable.ic_widget_cache),
-        contentDescription = "Cache Clean",
-        colorFilter = ColorFilter.tint(ColorProvider(Color.White)),
-        modifier = GlanceModifier.size(20.dp),
-      )
+      Box(
+        modifier =
+          GlanceModifier.size(36.dp)
+            .background(if (isSweeping) Color(0xFF334155) else Color(0xFF3B82F6))
+            .cornerRadius(999.dp)
+            .clickable(
+              onClick =
+                actionRunCallback<RunSweepWidgetAction>(
+                  actionParametersOf(ACTION_TYPE_KEY to SweepActionType.CLEAR_CACHE.name)
+                )
+            ),
+        contentAlignment = Alignment.Center,
+      ) {
+        Image(
+          provider = ImageProvider(R.drawable.ic_widget_cache),
+          contentDescription = "Cache Clean",
+          colorFilter = ColorFilter.tint(ColorProvider(Color.White)),
+          modifier = GlanceModifier.size(20.dp),
+        )
+      }
     }
   }
 }

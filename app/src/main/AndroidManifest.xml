@@ -48,6 +48,10 @@
 
     <queries>
         <package android:name="moe.shizuku.privileged.api" />
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+        </intent>
     </queries>
 
     <application
@@ -84,7 +88,9 @@
 
         <receiver
             android:name=".syssweep.widget.SysSweepWidgetReceiver"
+            android:enabled="true"
             android:exported="true"
+            android:icon="@mipmap/ic_launcher"
             android:label="@string/widget_name">
             <intent-filter>
                 <action android:name="android.app.action.APPWIDGET_UPDATE" />
@@ -96,7 +102,9 @@
 
         <receiver
             android:name=".syssweep.widget.MiniRamWidgetReceiver"
+            android:enabled="true"
             android:exported="true"
+            android:icon="@mipmap/ic_launcher"
             android:label="@string/mini_ram_widget_name">
             <intent-filter>
                 <action android:name="android.app.action.APPWIDGET_UPDATE" />
@@ -108,7 +116,9 @@
 
         <receiver
             android:name=".syssweep.widget.MiniCacheWidgetReceiver"
+            android:enabled="true"
             android:exported="true"
+            android:icon="@mipmap/ic_launcher"
             android:label="@string/mini_cache_widget_name">
             <intent-filter>
                 <action android:name="android.app.action.APPWIDGET_UPDATE" />
@@ -120,7 +130,9 @@
 
         <receiver
             android:name=".syssweep.widget.MiniDualWidgetReceiver"
+            android:enabled="true"
             android:exported="true"
+            android:icon="@mipmap/ic_launcher"
             android:label="@string/mini_dual_widget_name">
             <intent-filter>
                 <action android:name="android.app.action.APPWIDGET_UPDATE" />
